@@ -152,6 +152,11 @@ if exist "$(ProjectDir)..\..\..\vmm.dll" (
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ProjectReference Include="ext\VolkDMA\VolkDMA.vcxproj">
+      <Project>{b2c65363-9160-4df1-83ea-4ce1d8df7b07}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="ext\Clipper2Lib\src\clipper.engine.cpp" />
     <ClCompile Include="ext\Clipper2Lib\src\clipper.offset.cpp" />
     <ClCompile Include="ext\Clipper2Lib\src\clipper.rectclip.cpp" />
@@ -162,10 +167,7 @@ if exist "$(ProjectDir)..\..\..\vmm.dll" (
     <ClCompile Include="ext\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="ext\imgui\imgui_tables.cpp" />
     <ClCompile Include="ext\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="ext\VolkDMA\src\dma.cpp" />
     <ClCompile Include="src\dma_helper.cpp" />
-    <ClCompile Include="ext\VolkDMA\src\inputstate.cpp" />
-    <ClCompile Include="ext\VolkDMA\src\process.cpp" />
     <ClCompile Include="src\cache\cache.cpp" />
     <ClCompile Include="src\cheats\esp\esp.cpp" />
     <ClCompile Include="src\cheats\esp\helpers\visualize.h" />
