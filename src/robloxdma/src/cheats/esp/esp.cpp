@@ -7,7 +7,6 @@
 #include <cheats/esp/helpers/visualize.h>
 #include <clipper2/clipper.h>
 #include <clipper2/clipper.core.h>
-#include <Memory/Memory.h>
 #include <sdk/offsets/offsets.h>
 #include <unordered_map>
 #include <algorithm>
@@ -151,7 +150,7 @@ void esp::run()
             else if (distance > lod_distance_mid) lod_level = 2;
             else if (distance > lod_distance_near) lod_level = 1;
             else lod_level = 0;
-            if (high_player_count) lod_level = std::min(3, lod_level + 1);
+            if (high_player_count) lod_level = (std::min)(3, lod_level + 1);
             if (very_high_player_count) lod_level = 3;
         }
         if (!need_any_visual && !settings::visuals::name && !settings::visuals::healthbar &&
@@ -206,7 +205,7 @@ void esp::run()
                 math::vector3 right_foot = entity.primitive_cache.at("RightFoot").position;
                 feet_pos = math::vector3(
                     (left_foot.x + right_foot.x) * 0.5f,
-                    std::min(left_foot.y, right_foot.y) - 0.5f,
+                    (std::min)(left_foot.y, right_foot.y) - 0.5f,
                     (left_foot.z + right_foot.z) * 0.5f
                 );
                 has_feet = true;
@@ -217,7 +216,7 @@ void esp::run()
                 math::vector3 right_leg = entity.primitive_cache.at("Right Leg").position;
                 feet_pos = math::vector3(
                     (left_leg.x + right_leg.x) * 0.5f,
-                    std::min(left_leg.y, right_leg.y) - 1.5f,
+                    (std::min)(left_leg.y, right_leg.y) - 1.5f,
                     (left_leg.z + right_leg.z) * 0.5f
                 );
                 has_feet = true;

@@ -2,7 +2,8 @@
 #include <globals.h>
 #include <game/game.h>
 #include <sdk/offsets/offsets.h>
-#include <Memory/Memory.h>
+#include <dma_helper.h>
+#include "VolkDMA/process.hh"
 #include <settings/settings.h>
 #include <chrono>
 #include <unordered_set>
@@ -15,7 +16,7 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update);
 static void UpdatePositions();
 void cache::run() {
 	sleep(2000);
-	scatter_handle = memory.CreateScatterHandle();
+	scatter_handle = get_process() ? get_process()->create_scatter(0) : nullptr;
 	if (!scatter_handle)
 	{
 		LOG("[!] CRITICAL: Failed to create scatter handle\n");
@@ -62,7 +63,7 @@ static void FetchEntities()
 	{
 		return;
 	}
-	std::uint64_t localplayer_addr = memory.Read<std::uint64_t>(game::players_service.address + Offsets::Player::LocalPlayer);
+	std::uint64_t localplayer_addr = get_process()->read<std::uint64_t>(game::players_service.address + Offsets::Player::LocalPlayer);
 	if (localplayer_addr == 0 || localplayer_addr <= 0x10000)
 	{
 		return;
@@ -97,10 +98,10 @@ static void FetchEntities()
 	{
 		if (players[i].address > 0x10000)
 		{
-			model_instances[i] = memory.Read<std::uint64_t>(players[i].address + Offsets::Player::ModelInstance);
+			model_instances[i] = get_process()->read<std::uint64_t>(players[i].address + Offsets::Player::ModelInstance);
 			if (model_instances[i] > 0x10000)
 			{
-				model_parents[i] = memory.Read<std::uint64_t>(model_instances[i] + Offsets::Instance::Parent);
+				model_parents[i] = get_process()->read<std::uint64_t>(model_instances[i] + Offsets::Instance::Parent);
 			}
 		}
 	}
@@ -182,12 +183,12 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 		auto* entity = entities_to_update[i];
 		if (entity && entity->instance.address > 0x10000)
 		{
-			memory.AddScatterReadRequest(scatter_handle, entity->instance.address + Offsets::Player::ModelInstance, &model_instances[i], sizeof(std::uint64_t));
-			memory.AddScatterReadRequest(scatter_handle, entity->instance.address + Offsets::Player::Team, &teams[i], sizeof(std::uint64_t));
-			memory.AddScatterReadRequest(scatter_handle, entity->instance.address + Offsets::Player::UserId, &userids[i], sizeof(std::uint64_t));
+			get_process()->add_read_scatter(scatter_handle, entity->instance.address + Offsets::Player::ModelInstance, &model_instances[i], sizeof(std::uint64_t));
+			get_process()->add_read_scatter(scatter_handle, entity->instance.address + Offsets::Player::Team, &teams[i], sizeof(std::uint64_t));
+			get_process()->add_read_scatter(scatter_handle, entity->instance.address + Offsets::Player::UserId, &userids[i], sizeof(std::uint64_t));
 		}
 	}
-	memory.ExecuteReadScatter(scatter_handle);
+	get_process()->execute_scatter(scatter_handle);
 	for (size_t i = 0; i < entities_to_update.size(); ++i)
 	{
 		auto* entity = entities_to_update[i];
@@ -225,7 +226,7 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 			rbx::instance_t model_instance(entity->model_instance_addr);
 			std::uint64_t model_parent = 0;
 			try {
-				model_parent = memory.Read<std::uint64_t>(entity->model_instance_addr + Offsets::Instance::Parent);
+				model_parent = get_process()->read<std::uint64_t>(entity->model_instance_addr + Offsets::Instance::Parent);
 			}
 			catch (...) {
 				entity->parts.clear();
@@ -275,9 +276,9 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 						found_humanoid = true;
 						entity->humanoid = rbx::humanoid_t(child.address);
 						try {
-							entity->health = memory.Read<float>(child.address + Offsets::Humanoid::Health);
-							entity->max_health = memory.Read<float>(child.address + Offsets::Humanoid::MaxHealth);
-							entity->humanoid_state = memory.Read<std::int16_t>(child.address + Offsets::Humanoid::HumanoidState);
+							entity->health = get_process()->read<float>(child.address + Offsets::Humanoid::Health);
+							entity->max_health = get_process()->read<float>(child.address + Offsets::Humanoid::MaxHealth);
+							entity->humanoid_state = get_process()->read<std::int16_t>(child.address + Offsets::Humanoid::HumanoidState);
 							if (!std::isfinite(entity->health)) entity->health = 0.0f;
 							if (!std::isfinite(entity->max_health)) entity->max_health = 100.0f;
 							if (entity->health <= 0.0f || entity->humanoid_state == 15 || entity->humanoid_state == 16)
@@ -301,18 +302,18 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 			{
 				for (auto& part : parts_batch)
 				{
-					memory.AddScatterReadRequest(scatter_handle, part.part_addr + Offsets::BasePart::Primitive, &part.prim_addr, sizeof(std::uint64_t));
+					get_process()->add_read_scatter(scatter_handle, part.part_addr + Offsets::BasePart::Primitive, &part.prim_addr, sizeof(std::uint64_t));
 				}
-				memory.ExecuteReadScatter(scatter_handle);
+				get_process()->execute_scatter(scatter_handle);
 				for (auto& part : parts_batch)
 				{
 					if (part.prim_addr > 0x10000)
 					{
-						memory.AddScatterReadRequest(scatter_handle, part.prim_addr + Offsets::BasePart::Position, &part.position, sizeof(math::vector3));
-						memory.AddScatterReadRequest(scatter_handle, part.prim_addr + Offsets::BasePart::Size, &part.size, sizeof(math::vector3));
+						get_process()->add_read_scatter(scatter_handle, part.prim_addr + Offsets::BasePart::Position, &part.position, sizeof(math::vector3));
+						get_process()->add_read_scatter(scatter_handle, part.prim_addr + Offsets::BasePart::Size, &part.size, sizeof(math::vector3));
 					}
 				}
-				memory.ExecuteReadScatter(scatter_handle);
+				get_process()->execute_scatter(scatter_handle);
 				for (const auto& part : parts_batch)
 				{
 					if (part.prim_addr > 0x10000 &&
@@ -400,23 +401,23 @@ static void UpdatePositions()
 				auto prim_cache_it = entity.primitive_cache.find(part_name);
 				if (prim_cache_it != entity.primitive_cache.end())
 				{
-					prim_addr = memory.Read<std::uint64_t>(part.address + Offsets::BasePart::Primitive);
+					prim_addr = get_process()->read<std::uint64_t>(part.address + Offsets::BasePart::Primitive);
 					cached_prim_addrs[i][part_name] = prim_addr;
 				}
 			}
 			if (prim_addr > 0x10000)
 			{
-				memory.AddScatterReadRequest(scatter_handle, prim_addr + Offsets::BasePart::Position, &positions_map[i][part_name], sizeof(math::vector3));
+				get_process()->add_read_scatter(scatter_handle, prim_addr + Offsets::BasePart::Position, &positions_map[i][part_name], sizeof(math::vector3));
 				if (part_name == "HumanoidRootPart" || part_name == "Head")
 				{
-					memory.AddScatterReadRequest(scatter_handle, prim_addr + Offsets::BasePart::AssemblyLinearVelocity, &velocities_map[i][part_name], sizeof(math::vector3));
+					get_process()->add_read_scatter(scatter_handle, prim_addr + Offsets::BasePart::AssemblyLinearVelocity, &velocities_map[i][part_name], sizeof(math::vector3));
 				}
 			}
 		}
 	}
 	if (positions_map.empty())
 		return;
-	memory.ExecuteReadScatter(scatter_handle);
+	get_process()->execute_scatter(scatter_handle);
 	for (auto& entity_pair : positions_map)
 	{
 		size_t idx = entity_pair.first;

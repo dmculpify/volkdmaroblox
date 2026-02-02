@@ -1,4 +1,4 @@
-﻿#define IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <render/render.h>
 #include <render/assets/fonts.h>
 
@@ -11,7 +11,8 @@
 #include <settings/config.h>
 #include <cheats/esp/esp.h>
 #include <cache/cache.h>
-#include <Memory/Memory.h>
+#include <dma_helper.h>
+#include <VolkDMA/process.hh>
 #include <sdk/offsets/offsets.h>
 
 #define ALPHA    ( ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoDragDrop | ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_NoBorder )
@@ -749,12 +750,15 @@ void render_t::render_menu()
                 // Read username from Instance::Name offset
                 std::string username = "Unknown";
                 try {
-                    std::uint64_t name_ptr = memory.Read<std::uint64_t>(player.instance.address + Offsets::Instance::Name);
-                    if (name_ptr > 0x10000 && name_ptr < 0x7FFFFFFFFFFF)
-                    {
-                        username = memory.Read_string(name_ptr);
-                        if (username.empty() || username.length() > 64)
-                            username = "Unknown";
+                    Process* proc = get_process();
+                    if (proc) {
+                        std::uint64_t name_ptr = proc->read<std::uint64_t>(player.instance.address + Offsets::Instance::Name);
+                        if (name_ptr > 0x10000 && name_ptr < 0x7FFFFFFFFFFF)
+                        {
+                            username = read_string(proc, name_ptr);
+                            if (username.empty() || username.length() > 64)
+                                username = "Unknown";
+                        }
                     }
                 } catch (...) {
                     username = "Unknown";
