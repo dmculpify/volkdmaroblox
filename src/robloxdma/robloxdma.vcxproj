@@ -137,19 +137,6 @@
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <AdditionalDependencies>leechcore.lib;vmm.lib;FTD3XX.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>if exist "$(SolutionDir)dlls\vmm.dll" (
-  xcopy /Y "$(SolutionDir)dlls\FTD3XX.dll" "$(OutDir)"
-  xcopy /Y "$(SolutionDir)dlls\leechcore.dll" "$(OutDir)"
-  xcopy /Y "$(SolutionDir)dlls\vmm.dll" "$(OutDir)"
-)
-if exist "$(ProjectDir)..\..\..\vmm.dll" (
-  xcopy /Y "$(ProjectDir)..\..\..\FTD3XX.dll" "$(OutDir)"
-  xcopy /Y "$(ProjectDir)..\..\..\leechcore.dll" "$(OutDir)"
-  xcopy /Y "$(ProjectDir)..\..\..\vmm.dll" "$(OutDir)"
-)</Command>
-      <Message>Copying DMA DLLs to output directory...</Message>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ProjectReference Include="ext\VolkDMA\VolkDMA.vcxproj">
