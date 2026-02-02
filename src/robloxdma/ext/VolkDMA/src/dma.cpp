@@ -47,7 +47,7 @@ DMA::DMA(bool use_memory_map) {
         }
     }
 
-    handle.reset(VMMDLL_Initialize(argc, argv));
+    handle.reset(VMMDLL_Initialize(argc, const_cast<LPCSTR*>(argv)));
     if (!handle) {
         std::cerr << "[DMA] Failed to initialize.\n";
         return;
@@ -133,12 +133,12 @@ uint64_t DMA::find_signature(const char* signature, uint64_t range_start, uint64
 }
 
 bool DMA::dump_memory_map() {
-    char arg0[] = "";
-    char arg1[] = "-device";
-    char arg2[] = "fpga://algo=0";
-    char arg3[] = "-v";
-    char arg4[] = "-printf";
-    LPSTR argv[] = { arg0, arg1, arg2, arg3, arg4 };
+    const char arg0[] = "";
+    const char arg1[] = "-device";
+    const char arg2[] = "fpga://algo=0";
+    const char arg3[] = "-v";
+    const char arg4[] = "-printf";
+    LPCSTR argv[] = { arg0, arg1, arg2, arg3, arg4 };
     const DWORD argc = static_cast<DWORD>(std::size(argv));
 
     VolkHandle temp_handle(VMMDLL_Initialize(argc, argv), vmm_close);

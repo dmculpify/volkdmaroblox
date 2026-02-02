@@ -17,7 +17,7 @@
 static constexpr DWORD scatter_flags = VMMDLL_FLAG_NOCACHE | VMMDLL_FLAG_ZEROPAD_ON_FAIL;
 
 static uint64_t cb_size = 0x80000;
-VOID cb_add_file(_Inout_ HANDLE h, _In_ LPSTR uszName, _In_ ULONG64 cb, _In_opt_ PVMMDLL_VFS_FILELIST_EXINFO pExInfo) {
+VOID cb_add_file(_Inout_ HANDLE h, _In_ LPCSTR uszName, _In_ ULONG64 cb, _In_opt_ PVMMDLL_VFS_FILELIST_EXINFO pExInfo) {
     if (uszName && strcmp(uszName, "dtb.txt") == 0)
         cb_size = cb;
 }
@@ -164,7 +164,7 @@ bool Process::fix_cr3(const std::string& process_name) {
     VfsFileList.dwVersion = VMMDLL_VFS_FILELIST_VERSION;
     VfsFileList.h = 0;
     VfsFileList.pfnAddDirectory = nullptr;
-    VfsFileList.pfnAddFile = cb_add_file;
+    VfsFileList.pfnAddFile = reinterpret_cast<decltype(VfsFileList.pfnAddFile)>(cb_add_file);
 
     if (!VMMDLL_VfsListU(this->dma.handle.get(), const_cast<LPSTR>("\\misc\\procinfo\\"), &VfsFileList))
         return false;
