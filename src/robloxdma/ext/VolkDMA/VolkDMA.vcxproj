@@ -43,11 +43,13 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetName>$(ProjectName)Release</TargetName>
     <OutDir>$(ProjectDir)..\..\..\lib\</OutDir>
     <IntDir>$(SolutionDir)artifacts\VolkDMA\</IntDir>
     <IncludePath>$(ProjectDir)include;$(ProjectDir)..\..\..\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetName>$(ProjectName)Debug</TargetName>
     <OutDir>$(ProjectDir)..\..\..\lib\</OutDir>
     <IntDir>$(SolutionDir)artifacts\VolkDMA\</IntDir>
     <IncludePath>$(ProjectDir)include;$(ProjectDir)..\..\..\include;$(IncludePath)</IncludePath>
@@ -58,6 +60,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Lib>
       <AdditionalDependencies>leechcore.lib;vmm.lib;%(AdditionalDependencies)</AdditionalDependencies>

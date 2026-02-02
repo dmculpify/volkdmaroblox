@@ -141,6 +141,7 @@
   <ItemGroup>
     <ProjectReference Include="ext\VolkDMA\VolkDMA.vcxproj">
       <Project>{b2c65363-9160-4df1-83ea-4ce1d8df7b07}</Project>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
