@@ -46,13 +46,13 @@
     <TargetName>$(ProjectName)Release</TargetName>
     <OutDir>$(ProjectDir)..\..\..\lib\</OutDir>
     <IntDir>$(SolutionDir)artifacts\VolkDMA\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(ProjectDir)..\..\..\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(ProjectDir)external\vmm;$(ProjectDir)external\leechcore;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>$(ProjectName)Debug</TargetName>
     <OutDir>$(ProjectDir)..\..\..\lib\</OutDir>
     <IntDir>$(SolutionDir)artifacts\VolkDMA\</IntDir>
-    <IncludePath>$(ProjectDir)include;$(ProjectDir)..\..\..\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(ProjectDir)external\vmm;$(ProjectDir)external\leechcore;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

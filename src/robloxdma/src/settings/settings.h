@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <imgui/imgui.h>
 
 namespace settings
@@ -48,8 +48,6 @@ namespace settings
 		inline int resolution_width = 2560;
 		inline int resolution_height = 1440;
 		inline bool resolution_changed = false;
-		inline int fps_cap = 0;
-		inline bool enable_fps_cap = false;
 		inline bool force_refresh = false;
 		inline int entity_batch_size = 32;
 		inline float lod_distance_near = 100.0f;

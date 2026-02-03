@@ -1,4 +1,4 @@
-Headers for the build.
+This folder is not used for DMA headers.
 
-- vmmdll.h, leechcore.h — DMA SDK headers (MemProcFS/LeechCore). Restored from https://github.com/ufrisk/MemProcFS (includes/).
-- VolkDMA headers are in the project at: src/src/robloxdma/ext/VolkDMA/include/VolkDMA/
+VolkDMA uses its own external headers: ext/VolkDMA/external/vmm/ and ext/VolkDMA/external/leechcore/.
+The app only includes VolkDMA headers from ext/VolkDMA/include/.

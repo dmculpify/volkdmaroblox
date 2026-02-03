@@ -412,32 +412,7 @@ void render_t::end_render()
 
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-    // Present with no VSync for maximum FPS
-    // FPS cap implementation (before present for accurate timing)
-    static auto last_frame_time = std::chrono::high_resolution_clock::now();
-    
-    if (settings::performance::enable_fps_cap && settings::performance::fps_cap > 0)
-    {
-        auto current_time = std::chrono::high_resolution_clock::now();
-        
-        // Calculate target frame time in microseconds
-        long long target_frame_time_us = 1000000LL / settings::performance::fps_cap;
-        
-        auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(current_time - last_frame_time).count();
-        
-        if (elapsed_us < target_frame_time_us)
-        {
-            long long sleep_time = target_frame_time_us - elapsed_us;
-            if (sleep_time > 0)
-            {
-                std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
-            }
-        }
-    }
-    
-    last_frame_time = std::chrono::high_resolution_clock::now();
-    
-    // Present without VSync for maximum FPS
+    // No VSync, no FPS cap - unlimited FPS (e.g. 300+)
     this->detail->swap_chain->Present(0, 0);
 }
 
