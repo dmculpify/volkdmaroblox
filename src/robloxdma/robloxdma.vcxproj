@@ -74,13 +74,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)build\</OutDir>
     <IntDir>$(SolutionDir)artifacts\</IntDir>
-    <IncludePath>src;ext;ext\Clipper2Lib\include;ext\VolkDMA\include;$(IncludePath)</IncludePath>
+    <IncludePath>src;ext;ext\Clipper2Lib\include;$(ProjectDir)..\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)..\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)build\</OutDir>
     <IntDir>$(SolutionDir)artifacts\</IntDir>
-    <IncludePath>src;ext;ext\Clipper2Lib\include;ext\VolkDMA\include;$(IncludePath)</IncludePath>
+    <IncludePath>src;ext;ext\Clipper2Lib\include;$(ProjectDir)..\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)..\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -123,6 +123,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>VolkDMADebug.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y "$(SolutionDir)dlls\*.dll" "$(OutDir)"</Command>
@@ -146,19 +147,13 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <AdditionalDependencies>d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>VolkDMARelease.lib;d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /Y "$(SolutionDir)dlls\*.dll" "$(OutDir)"</Command>
       <Message>Copying runtime DLLs to build folder</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ProjectReference Include="ext\VolkDMA\VolkDMA.vcxproj">
-      <Project>{b2c65363-9160-4df1-83ea-4ce1d8df7b07}</Project>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
-    </ProjectReference>
-  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ext\Clipper2Lib\src\clipper.engine.cpp" />
     <ClCompile Include="ext\Clipper2Lib\src\clipper.offset.cpp" />
@@ -198,11 +193,7 @@
     <ClInclude Include="ext\imgui\imstb_rectpack.h" />
     <ClInclude Include="ext\imgui\imstb_textedit.h" />
     <ClInclude Include="ext\imgui\imstb_truetype.h" />
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\dma.hh" />
     <ClInclude Include="src\dma_helper.h" />
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\inputstate.hh" />
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\internal\volkresource.hh" />
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\process.hh" />
     <ClInclude Include="src\cache\cache.h" />
     <ClInclude Include="src\cheats\esp\esp.h" />
     <ClInclude Include="src\game\game.h" />
