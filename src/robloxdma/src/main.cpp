@@ -47,44 +47,56 @@ auto main() -> std::int32_t {
 		roblox_window = FindWindowW(0, L"Roblox");
 
 		logger->log<info>("[INIT] Reading FakeDataModel from offset 0x%llx...", Offsets::FakeDataModel::Pointer);
-		std::uint64_t fake_datamodel = g_process->read<std::uint64_t>(base + Offsets::FakeDataModel::Pointer);
+		std::uint64_t fake_datamodel = 0;
 		std::uint64_t real_datamodel = 0;
 		std::uint64_t visualengine = 0;
-		
-		logger->log<info>("[INIT] FakeDataModel @ 0x%llx", fake_datamodel);
-		
-		if (fake_datamodel != 0 && fake_datamodel > 0x10000)
+		std::uint64_t gameid = 0;
+		std::uint64_t placeid = 0;
+		VMMDLL_SCATTER_HANDLE init_scatter = g_process->create_scatter(0);
+		if (init_scatter)
 		{
-			real_datamodel = g_process->read<std::uint64_t>(fake_datamodel + Offsets::FakeDataModel::RealDataModel);
-			visualengine = g_process->read<std::uint64_t>(base + Offsets::VisualEngine::Pointer);
-			logger->log<info>("[INIT] RealDataModel @ 0x%llx", real_datamodel);
-			logger->log<info>("[INIT] VisualEngine @ 0x%llx", visualengine);
+			g_process->add_read_scatter(init_scatter, base + Offsets::FakeDataModel::Pointer, &fake_datamodel, sizeof(fake_datamodel));
+			g_process->execute_scatter(init_scatter);
+			logger->log<info>("[INIT] FakeDataModel @ 0x%llx", fake_datamodel);
+			if (fake_datamodel != 0 && fake_datamodel > 0x10000)
+			{
+				g_process->add_read_scatter(init_scatter, fake_datamodel + Offsets::FakeDataModel::RealDataModel, &real_datamodel, sizeof(real_datamodel));
+				g_process->add_read_scatter(init_scatter, base + Offsets::VisualEngine::Pointer, &visualengine, sizeof(visualengine));
+				g_process->execute_scatter(init_scatter);
+				logger->log<info>("[INIT] RealDataModel @ 0x%llx", real_datamodel);
+				logger->log<info>("[INIT] VisualEngine @ 0x%llx", visualengine);
+			}
+			else
+			{
+				logger->log<error>("[INIT] CRITICAL: FakeDataModel is NULL or invalid!");
+				logger->log<error>("[INIT] Offsets may be outdated. Roblox might have updated.");
+				logger->log<error>("[INIT] Base address: 0x%llx", base);
+				logger->log<error>("[INIT] Trying to continue anyway...");
+			}
+			game::datamodel = { real_datamodel };
+			game::visualengine = { visualengine };
+			logger->log<debug>("datamodel @ 0x%llx", game::datamodel.address);
+			logger->log<debug>("visengine @ 0x%llx", game::visualengine.address);
+			if (game::datamodel.address > 0x10000)
+			{
+				g_process->add_read_scatter(init_scatter, game::datamodel.address + Offsets::DataModel::GameId, &gameid, sizeof(gameid));
+				g_process->add_read_scatter(init_scatter, game::datamodel.address + Offsets::DataModel::PlaceId, &placeid, sizeof(placeid));
+				g_process->execute_scatter(init_scatter);
+				game::gameid = gameid;
+				game::placeid = placeid;
+			}
+			else
+			{
+				logger->log<error>("[INIT] Cannot read game_id/place_id - datamodel is invalid");
+			}
+			g_process->close_scatter(init_scatter);
 		}
 		else
 		{
-			logger->log<error>("[INIT] CRITICAL: FakeDataModel is NULL or invalid!");
-			logger->log<error>("[INIT] Offsets may be outdated. Roblox might have updated.");
-			logger->log<error>("[INIT] Base address: 0x%llx", base);
-			logger->log<error>("[INIT] Trying to continue anyway...");
+			logger->log<error>("[INIT] Failed to create scatter for init");
 		}
-		
-		game::datamodel = { real_datamodel };
-		game::visualengine = { visualengine };
-
-		logger->log<debug>("datamodel @ 0x%llx", game::datamodel.address);
-		logger->log<debug>("visengine @ 0x%llx", game::visualengine.address);
-
-		if (game::datamodel.address > 0x10000)
-		{
-			game::gameid = g_process->read<std::uint64_t>(game::datamodel.address + Offsets::DataModel::GameId);
-			game::placeid = g_process->read<std::uint64_t>(game::datamodel.address + Offsets::DataModel::PlaceId);
-		}
-		else
-		{
-			logger->log<error>("[INIT] Cannot read game_id/place_id - datamodel is invalid");
-			game::gameid = 0;
-			game::placeid = 0;
-		}
+		if (game::datamodel.address <= 0x10000)
+			game::gameid = 0, game::placeid = 0;
 
 		logger->log<debug>("game id  -> %llu", game::gameid);
 		logger->log<debug>("place id -> %llu", game::placeid);

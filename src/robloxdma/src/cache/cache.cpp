@@ -63,12 +63,31 @@ static void FetchEntities()
 	{
 		return;
 	}
-	std::uint64_t localplayer_addr = get_process()->read<std::uint64_t>(game::players_service.address + Offsets::Player::LocalPlayer);
+	std::vector<std::uint64_t> model_instances(players.size(), 0);
+	std::vector<std::uint64_t> model_parents(players.size(), 0);
+	std::uint64_t localplayer_addr = 0;
+	if (!scatter_handle)
+	{
+		return;
+	}
+	get_process()->add_read_scatter(scatter_handle, game::players_service.address + Offsets::Player::LocalPlayer, &localplayer_addr, sizeof(localplayer_addr));
+	for (size_t i = 0; i < players.size(); ++i)
+	{
+		if (players[i].address > 0x10000)
+			get_process()->add_read_scatter(scatter_handle, players[i].address + Offsets::Player::ModelInstance, &model_instances[i], sizeof(std::uint64_t));
+	}
+	get_process()->execute_scatter(scatter_handle);
 	if (localplayer_addr == 0 || localplayer_addr <= 0x10000)
 	{
 		return;
 	}
 	rbx::player_t localplayer = rbx::player_t(localplayer_addr);
+	for (size_t i = 0; i < players.size(); ++i)
+	{
+		if (model_instances[i] > 0x10000)
+			get_process()->add_read_scatter(scatter_handle, model_instances[i] + Offsets::Instance::Parent, &model_parents[i], sizeof(std::uint64_t));
+	}
+	get_process()->execute_scatter(scatter_handle);
 	bool force_refresh = settings::performance::force_refresh;
 	if (force_refresh)
 	{
@@ -92,19 +111,6 @@ static void FetchEntities()
 	entities_to_update.clear();
 	if (entities_to_update.capacity() < players.size())
 		entities_to_update.reserve(players.size());
-	std::vector<std::uint64_t> model_instances(players.size(), 0);
-	std::vector<std::uint64_t> model_parents(players.size(), 0);
-	for (size_t i = 0; i < players.size(); ++i)
-	{
-		if (players[i].address > 0x10000)
-		{
-			model_instances[i] = get_process()->read<std::uint64_t>(players[i].address + Offsets::Player::ModelInstance);
-			if (model_instances[i] > 0x10000)
-			{
-				model_parents[i] = get_process()->read<std::uint64_t>(model_instances[i] + Offsets::Instance::Parent);
-			}
-		}
-	}
 	for (size_t i = 0; i < players.size(); ++i)
 	{
 		cached_entities.emplace_back();
@@ -218,22 +224,21 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 		"HumanoidRootPart", "Head", "UpperTorso", "Torso"
 	};
 	const std::unordered_set<std::string>& parts_to_read = essential_parts;
-	for (auto* entity : entities_to_update)
+	std::vector<std::uint64_t> model_parents(entities_to_update.size(), 0);
+	for (size_t i = 0; i < entities_to_update.size(); ++i)
 	{
+		cache::entity_t* entity = entities_to_update[i];
+		if (entity && entity->model_instance_addr > 0x10000)
+			get_process()->add_read_scatter(scatter_handle, entity->model_instance_addr + Offsets::Instance::Parent, &model_parents[i], sizeof(std::uint64_t));
+	}
+	get_process()->execute_scatter(scatter_handle);
+	for (size_t i = 0; i < entities_to_update.size(); ++i)
+	{
+		cache::entity_t* entity = entities_to_update[i];
 		if (!entity || entity->model_instance_addr == 0 || entity->model_instance_addr <= 0x10000)
 			continue;
+		std::uint64_t model_parent = model_parents[i];
 		try {
-			rbx::instance_t model_instance(entity->model_instance_addr);
-			std::uint64_t model_parent = 0;
-			try {
-				model_parent = get_process()->read<std::uint64_t>(entity->model_instance_addr + Offsets::Instance::Parent);
-			}
-			catch (...) {
-				entity->parts.clear();
-				entity->primitive_cache.clear();
-				entity->model_instance_addr = 0;
-				continue;
-			}
 			if (model_parent == 0 || model_parent <= 0x10000)
 			{
 				entity->parts.clear();
@@ -241,6 +246,7 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 				entity->model_instance_addr = 0;
 				continue;
 			}
+			rbx::instance_t model_instance(entity->model_instance_addr);
 			auto children = model_instance.get_children();
 			entity->parts.clear();
 			entity->primitive_cache.clear();
@@ -368,7 +374,8 @@ static void UpdatePositions()
 	static std::unordered_map<size_t, std::unordered_map<std::string, math::vector3>> velocities_map;
 	positions_map.clear();
 	velocities_map.clear();
-	bool need_prim_refresh = false;
+	struct PrimRead { size_t i; std::string part_name; std::uint64_t part_addr; std::uint64_t prim_addr; };
+	std::vector<PrimRead> prim_reads;
 	for (size_t i = 0; i < cache::entity_cache.size(); ++i)
 	{
 		auto& entity = cache::entity_cache[i];
@@ -388,30 +395,50 @@ static void UpdatePositions()
 			{
 				auto part_it = cached_entity_it->second.find(part_name);
 				if (part_it != cached_entity_it->second.end())
-				{
 					prim_addr = part_it->second;
-				}
 				else
-				{
 					entity_needs_refresh = true;
-				}
 			}
 			if (entity_needs_refresh || prim_addr == 0)
 			{
 				auto prim_cache_it = entity.primitive_cache.find(part_name);
 				if (prim_cache_it != entity.primitive_cache.end())
-				{
-					prim_addr = get_process()->read<std::uint64_t>(part.address + Offsets::BasePart::Primitive);
-					cached_prim_addrs[i][part_name] = prim_addr;
-				}
+					prim_reads.push_back({ i, part_name, part.address, 0 });
+			}
+		}
+	}
+	if (!prim_reads.empty())
+	{
+		for (auto& pr : prim_reads)
+			get_process()->add_read_scatter(scatter_handle, pr.part_addr + Offsets::BasePart::Primitive, &pr.prim_addr, sizeof(std::uint64_t));
+		get_process()->execute_scatter(scatter_handle);
+		for (auto& pr : prim_reads)
+			cached_prim_addrs[pr.i][pr.part_name] = pr.prim_addr;
+	}
+	for (size_t i = 0; i < cache::entity_cache.size(); ++i)
+	{
+		auto& entity = cache::entity_cache[i];
+		auto cached_entity_it = cached_prim_addrs.find(i);
+		for (const auto& part_pair : entity.parts)
+		{
+			const std::string& part_name = part_pair.first;
+			const rbx::meshpart_t& part = part_pair.second;
+			if (!update_all_parts && essential_update_parts.count(part_name) == 0)
+				continue;
+			if (part.address <= 0x10000)
+				continue;
+			std::uint64_t prim_addr = 0;
+			if (cached_entity_it != cached_prim_addrs.end())
+			{
+				auto part_it = cached_entity_it->second.find(part_name);
+				if (part_it != cached_entity_it->second.end())
+					prim_addr = part_it->second;
 			}
 			if (prim_addr > 0x10000)
 			{
 				get_process()->add_read_scatter(scatter_handle, prim_addr + Offsets::BasePart::Position, &positions_map[i][part_name], sizeof(math::vector3));
 				if (part_name == "HumanoidRootPart" || part_name == "Head")
-				{
 					get_process()->add_read_scatter(scatter_handle, prim_addr + Offsets::BasePart::AssemblyLinearVelocity, &velocities_map[i][part_name], sizeof(math::vector3));
-				}
 			}
 		}
 	}

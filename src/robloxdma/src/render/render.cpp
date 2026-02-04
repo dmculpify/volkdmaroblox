@@ -677,27 +677,40 @@ void render_t::render_menu()
         }
         else
         {
+            std::vector<std::uint64_t> name_ptrs;
+            std::vector<std::string> usernames;
+            Process* proc = get_process();
+            if (proc)
+            {
+                for (const auto& p : players_snapshot)
+                    if (p.userid != 0)
+                        name_ptrs.push_back(0);
+                if (!name_ptrs.empty())
+                {
+                    void* name_scatter = proc->create_scatter(0);
+                    if (name_scatter)
+                    {
+                        size_t j = 0;
+                        for (const auto& p : players_snapshot)
+                        {
+                            if (p.userid == 0) continue;
+                            proc->add_read_scatter(name_scatter, p.instance.address + Offsets::Instance::Name, &name_ptrs[j], sizeof(std::uint64_t));
+                            ++j;
+                        }
+                        proc->execute_scatter(name_scatter);
+                        proc->close_scatter(name_scatter);
+                    }
+                    read_strings_scatter(proc, name_ptrs, usernames);
+                }
+            }
             ImGui::BeginChild("WhitelistScroll", ImVec2(0, 150), true);
+            size_t name_idx = 0;
             for (const auto& player : players_snapshot)
             {
                 if (player.userid == 0)
                     continue;
                 bool is_whitelisted = config::is_whitelisted(player.userid);
-                std::string username = "Unknown";
-                try {
-                    Process* proc = get_process();
-                    if (proc) {
-                        std::uint64_t name_ptr = proc->read<std::uint64_t>(player.instance.address + Offsets::Instance::Name);
-                        if (name_ptr > 0x10000 && name_ptr < 0x7FFFFFFFFFFF)
-                        {
-                            username = read_string(proc, name_ptr);
-                            if (username.empty() || username.length() > 64)
-                                username = "Unknown";
-                        }
-                    }
-                } catch (...) {
-                    username = "Unknown";
-                }
+                std::string username = (name_idx < usernames.size()) ? usernames[name_idx++] : "Unknown";
                 char label[256];
                 if (player.name != username && !player.name.empty())
                 {
