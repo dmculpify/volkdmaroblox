@@ -64,8 +64,8 @@ namespace settings
 		inline bool team_check = true;
 		inline bool aim_at_head = true;
 		inline bool draw_fov = true;
-		inline int aim_key = 0x02; // Right mouse button
-		inline int target_priority = 0; // 0 = closest to crosshair, 1 = closest distance
+		inline int aim_key = 0x02;
+		inline int target_priority = 0;
 		inline float fov = 100.0f;
 		inline float smoothness = 1.0f;
 		inline bool prediction = false;
@@ -77,7 +77,7 @@ namespace settings
 		inline bool enabled = false;
 		inline bool team_check = true;
 		inline bool head_only = false;
-		inline int trigger_key = 0x01; // Left mouse button
+		inline int trigger_key = 0x01;
 		inline float delay_ms = 0.0f;
 	}
 }

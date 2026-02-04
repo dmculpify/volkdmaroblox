@@ -159,7 +159,6 @@
     <ClCompile Include="ext\Clipper2Lib\src\clipper.offset.cpp" />
     <ClCompile Include="ext\Clipper2Lib\src\clipper.rectclip.cpp" />
     <ClCompile Include="ext\imgui\imgui.cpp" />
-    <ClCompile Include="ext\imgui\imgui_demo.cpp" />
     <ClCompile Include="ext\imgui\imgui_draw.cpp" />
     <ClCompile Include="ext\imgui\imgui_impl_dx11.cpp" />
     <ClCompile Include="ext\imgui\imgui_impl_win32.cpp" />
@@ -173,7 +172,6 @@
     <ClCompile Include="src\globals.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\render\render.cpp" />
-    <ClCompile Include="src\sdk\games\default.cpp" />
     <ClCompile Include="src\sdk\sdk.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -204,6 +202,7 @@
     <ClInclude Include="src\sdk\math\math.h" />
     <ClInclude Include="src\sdk\offsets\offsets.h" />
     <ClInclude Include="src\sdk\sdk.h" />
+    <ClInclude Include="src\settings\config.h" />
     <ClInclude Include="src\settings\settings.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

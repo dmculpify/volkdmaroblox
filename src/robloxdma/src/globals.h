@@ -14,10 +14,8 @@
 #define LOG(fmt, ...) ((void)0)
 #define LOGW(fmt, ...) ((void)0)
 #endif
-#define TEST_NAME "notepad.exe"
 #define BINARY_NAME "RobloxPlayerBeta.exe"
 #define sleep(x) std::this_thread::sleep_for(std::chrono::milliseconds(x))
-#define safe_continue(x) std::this_thread::sleep_for(std::chrono::milliseconds(x)); continue
 inline HWND roblox_window;
 inline std::unique_ptr<logger_t> logger = std::make_unique<logger_t>();
 inline std::unique_ptr<render_t> render = std::make_unique<render_t>();

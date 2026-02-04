@@ -1,7 +1,5 @@
 #include <globals.h>
 #include <thread>
-#include <chrono>
-#include <mutex>
 #include <sdk/sdk.h>
 #include <sdk/offsets/offsets.h>
 #include <game/game.h>

@@ -5,7 +5,6 @@
 #include <dwmapi.h>
 #include <cstdio>
 #include <chrono>
-#include <thread>
 #include <globals.h>
 #include <settings/settings.h>
 #include <settings/config.h>
@@ -75,7 +74,6 @@ bool render_t::create_window()
 
     RegisterClassExA(&this->detail->window_class);
 
-    // Use custom resolution if set, otherwise use screen metrics
     int window_width = (settings::performance::resolution_width > 0) ? settings::performance::resolution_width : GetSystemMetrics(SM_CXSCREEN);
     int window_height = (settings::performance::resolution_height > 0) ? settings::performance::resolution_height : GetSystemMetrics(SM_CYSCREEN);
     
@@ -217,7 +215,6 @@ bool render_t::create_imgui()
 
     ImGui::StyleColorsDark();
 
-    /* fonts */
     io.Fonts->AddFontDefault();
     esp_font = io.Fonts->AddFontFromMemoryTTF(visitor_font, sizeof visitor_font, 9.333f);
 
@@ -265,17 +262,14 @@ bool render_t::resize_window(int width, int height)
     if (!this->detail->window || !this->detail->swap_chain || !this->detail->device_context)
         return false;
 
-    // Release render target view before resizing
     if (this->detail->render_target_view)
     {
         this->detail->render_target_view->Release();
         this->detail->render_target_view = nullptr;
     }
 
-    // Resize window first
     SetWindowPos(this->detail->window, HWND_TOPMOST, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
     
-    // Update window margins for DWM
     RECT clientArea{};
     RECT windowArea{};
     GetClientRect(this->detail->window, &clientArea);
@@ -293,7 +287,6 @@ bool render_t::resize_window(int width, int height)
     };
     DwmExtendFrameIntoClientArea(this->detail->window, &margins);
 
-    // Resize swap chain buffers
     HRESULT hr = this->detail->swap_chain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
     if (FAILED(hr))
     {
@@ -301,7 +294,6 @@ bool render_t::resize_window(int width, int height)
         return false;
     }
 
-    // Recreate render target view
     ID3D11Texture2D* back_buffer = nullptr;
     hr = this->detail->swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
     
@@ -312,7 +304,6 @@ bool render_t::resize_window(int width, int height)
         
         if (SUCCEEDED(hr))
         {
-            // Set up viewport for the new resolution
             D3D11_VIEWPORT viewport = {};
             viewport.TopLeftX = 0;
             viewport.TopLeftY = 0;
@@ -322,7 +313,6 @@ bool render_t::resize_window(int width, int height)
             viewport.MaxDepth = 1.0f;
             this->detail->device_context->RSSetViewports(1, &viewport);
             
-            // Update and show window
             UpdateWindow(this->detail->window);
             ShowWindow(this->detail->window, SW_SHOW);
             return true;
@@ -341,12 +331,9 @@ void render_t::start_render()
         DispatchMessage(&msg);
     }
 
-    // Handle resolution change BEFORE starting new frame
     if (settings::performance::resolution_changed)
     {
         settings::performance::resolution_changed = false;
-        
-        // Log the resolution change attempt
         printf("[Resolution] Attempting to change to %dx%d\n", settings::performance::resolution_width, settings::performance::resolution_height);
         
         if (resize_window(settings::performance::resolution_width, settings::performance::resolution_height))
@@ -363,7 +350,6 @@ void render_t::start_render()
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
     
-    // Update ImGui display size every frame to ensure it's correct
     ImGuiIO& io = ImGui::GetIO();
     RECT rect;
     if (GetClientRect(this->detail->window, &rect))
@@ -377,12 +363,10 @@ void render_t::start_render()
 
         if (render->running)
         {
-            // Menu is OPEN - remove transparent flag so we can interact
             SetWindowLong(this->detail->window, GWL_EXSTYLE, WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_LAYERED);
         }
         else
         {
-            // Menu is CLOSED - add transparent flag for click-through
             SetWindowLong(this->detail->window, GWL_EXSTYLE, WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_LAYERED);
         }
     }
@@ -392,7 +376,6 @@ void render_t::end_render()
 {
     ImGui::Render();
 
-    // Ensure viewport is set correctly
     RECT rect;
     if (GetClientRect(this->detail->window, &rect))
     {
@@ -412,7 +395,6 @@ void render_t::end_render()
 
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-    // No VSync, no FPS cap - unlimited FPS (e.g. 300+)
     this->detail->swap_chain->Present(0, 0);
 }
 
@@ -432,7 +414,6 @@ void render_t::render_menu()
 
     ImGui::BeginChild("Main", ImVec2(0, 0));
     {
-        // Aimbot Section
         ImGui::TextUnformatted("Aimbot");
         ImGui::Separator();
         
@@ -450,7 +431,6 @@ void render_t::render_menu()
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Show FOV circle and crosshair");
         
-        // Aim key selection
         static const char* key_names[] = { 
             "Left Mouse", "Right Mouse", "Middle Mouse", 
             "MB4", "MB5", "Shift", "Ctrl", "Alt" 
@@ -503,7 +483,6 @@ void render_t::render_menu()
         ImGui::Separator();
         ImGui::Spacing();
         
-        // Triggerbot Section
         ImGui::TextUnformatted("Triggerbot");
         ImGui::Separator();
         
@@ -544,7 +523,6 @@ void render_t::render_menu()
         ImGui::Separator();
         ImGui::Spacing();
         
-        // Visuals Section
         ImGui::TextUnformatted("Visuals");
         ImGui::Separator();
         
@@ -602,13 +580,6 @@ void render_t::render_menu()
         ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::GetFontSize() * 2 - style.WindowPadding.x);
         ImGui::ColorEdit4("##Armourbar Color", (float*)&settings::visuals::colors::armourbar_color, ImGuiColorEditFlags_NoInputs);
 
-        //ImGui::Checkbox("Chinahat", &settings::visuals::china_hat);
-        //ImGui::SameLine(ImGui::GetWindowWidth() - ImGui::GetFontSize() * 2 - style.WindowPadding.x);
-        //ImGui::ColorEdit4("##Chinahat Color", (float*)&settings::visuals::colors::chinahat_color, ImGuiColorEditFlags_NoInputs);
-
-        //ImGui::Checkbox("Tracers", &settings::visuals::tracers);
-        //ImGui::Checkbox("Arrows", &settings::visuals::arrows);
-
         ImGui::Separator();
         ImGui::TextUnformatted("Performance");
         ImGui::Checkbox("Low-end mode", &settings::performance::low_end_mode);
@@ -645,7 +616,6 @@ void render_t::render_menu()
         
         if (ImGui::Button("Apply Resolution", ImVec2(-1, 0)))
         {
-            // Validate resolution
             if (settings::performance::resolution_width >= 640 && settings::performance::resolution_width <= 7680 &&
                 settings::performance::resolution_height >= 480 && settings::performance::resolution_height <= 4320)
             {
@@ -663,7 +633,6 @@ void render_t::render_menu()
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Apply the selected resolution (640x480 to 7680x4320)");
         
-        // Error popup
         if (ImGui::BeginPopupModal("Invalid Resolution", NULL, ImGuiWindowFlags_AlwaysAutoResize))
         {
             ImGui::Text("Resolution must be between 640x480 and 7680x4320");
@@ -681,15 +650,12 @@ void render_t::render_menu()
         
         ImGui::Separator();
         ImGui::Spacing();
-        
-        // Whitelist Section
         ImGui::TextUnformatted("Whitelist");
         ImGui::Separator();
         
         ImGui::TextWrapped("Select players to exclude from ESP and aimbot:");
         ImGui::Spacing();
         
-        // Force refresh button
         if (ImGui::Button("Force Refresh Players", ImVec2(-1, 0)))
         {
             settings::performance::force_refresh = true;
@@ -698,8 +664,6 @@ void render_t::render_menu()
             ImGui::SetTooltip("Manually refresh the player cache");
         
         ImGui::Spacing();
-        
-        // Get snapshot of current players
         std::vector<cache::entity_t> players_snapshot;
         {
             std::lock_guard<std::mutex> lock(cache::frame_data.mtx);
@@ -714,15 +678,11 @@ void render_t::render_menu()
         else
         {
             ImGui::BeginChild("WhitelistScroll", ImVec2(0, 150), true);
-            
             for (const auto& player : players_snapshot)
             {
                 if (player.userid == 0)
                     continue;
-                
                 bool is_whitelisted = config::is_whitelisted(player.userid);
-                
-                // Read username from Instance::Name offset
                 std::string username = "Unknown";
                 try {
                     Process* proc = get_process();
@@ -738,18 +698,14 @@ void render_t::render_menu()
                 } catch (...) {
                     username = "Unknown";
                 }
-                
-                // Format: [Checkbox] @Username (DisplayName) - Distance
                 char label[256];
                 if (player.name != username && !player.name.empty())
                 {
-                    // Show both username and display name if different
                     snprintf(label, sizeof(label), "@%s (%s) - %dm###player_%llu", 
                         username.c_str(), player.name.c_str(), player.distance, player.userid);
                 }
                 else
                 {
-                    // Show only username if display name is same or empty
                     snprintf(label, sizeof(label), "@%s - %dm###player_%llu", 
                         username.c_str(), player.distance, player.userid);
                 }
@@ -798,13 +754,9 @@ void render_t::render_menu()
     ImGui::PopStyleVar();
 
     ImGui::End();
-    
-    // Auto-save settings when menu closes or periodically
     static auto last_save_time = std::chrono::high_resolution_clock::now();
     auto save_current_time = std::chrono::high_resolution_clock::now();
     auto save_elapsed = std::chrono::duration_cast<std::chrono::seconds>(save_current_time - last_save_time).count();
-    
-    // Auto-save every 5 seconds if menu is open
     if (save_elapsed >= 5)
     {
         config::save();
@@ -817,7 +769,6 @@ void render_t::render_visuals()
 {
     ImGuiIO& io = ImGui::GetIO();
     
-    // Calculate FPS
     static int frame_count = 0;
     static auto last_time = std::chrono::high_resolution_clock::now();
     
@@ -825,14 +776,13 @@ void render_t::render_visuals()
     auto current_time = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_time).count();
     
-    if (elapsed >= 500) // Update FPS every 500ms
+    if (elapsed >= 500)
     {
         this->fps = (frame_count * 1000.0f) / elapsed;
         frame_count = 0;
         last_time = current_time;
     }
     
-    // PERSISTENT FPS COUNTER - Always visible in top right
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 120, 10), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(110, 40), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.7f);
@@ -846,7 +796,6 @@ void render_t::render_visuals()
         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs |
         ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus))
     {
-        // Color code FPS
         ImVec4 fps_color;
         if (this->fps >= 100.0f) 
             fps_color = ImVec4(0.0f, 1.0f, 0.0f, 1.0f); // Green

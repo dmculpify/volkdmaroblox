@@ -18,9 +18,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\sdk\games\default.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\sdk\sdk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -54,9 +51,6 @@
     <ClCompile Include="ext\imgui\imgui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ext\imgui\imgui_demo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ext\imgui\imgui_draw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -70,15 +64,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ext\imgui\imgui_widgets.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ext\VolkDMA\src\dma.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ext\VolkDMA\src\inputstate.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ext\VolkDMA\src\process.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\dma_helper.cpp">
@@ -108,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\cheats\esp\esp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\settings\config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\settings\settings.h">
@@ -165,18 +153,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ext\imgui\imstb_truetype.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\dma.hh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\inputstate.hh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\internal\volkresource.hh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ext\VolkDMA\include\VolkDMA\process.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\dma_helper.h">

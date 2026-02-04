@@ -702,5 +702,4 @@ void esp::run()
             visualize::line(screen_bottom, box_bottom, IM_COL32(255, 255, 255, 255));
         }
     }
-    // Aimbot FOV drawing removed - aimbot feature not implemented
 }
