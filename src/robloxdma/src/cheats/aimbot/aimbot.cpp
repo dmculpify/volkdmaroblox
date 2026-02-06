@@ -96,7 +96,6 @@ void aimbot::run() {
         scale_y = screen_h / game_dims.y;
     }
 
-    InputState::Point cursor = input->get_cursor_position();
     float center_x = screen_w * 0.5f;
     float center_y = screen_h * 0.5f;
     float fov_radius = fov_radius_pixels(settings::aimbot::fov, screen_w, screen_h);
@@ -142,8 +141,8 @@ void aimbot::run() {
         if (sx < 0 || sx > screen_w || sy < 0 || sy > screen_h)
             continue;
 
-        float dx = sx - cursor.x;
-        float dy = sy - cursor.y;
+        float dx = sx - center_x;
+        float dy = sy - center_y;
         float dist_to_crosshair = std::sqrt(dx * dx + dy * dy);
         if (dist_to_crosshair > fov_radius)
             continue;
@@ -164,22 +163,19 @@ void aimbot::run() {
         std::sort(candidates.begin(), candidates.end(), [](const candidate_t& a, const candidate_t& b) { return a.dist_3d < b.dist_3d; });
 
     const candidate_t& best = candidates[0];
-    float move_x = best.screen_x - cursor.x;
-    float move_y = best.screen_y - cursor.y;
     float smooth = (std::max)(1.0f, settings::aimbot::smoothness);
-    move_x /= smooth;
-    move_y /= smooth;
+    float aim_x = center_x + (best.screen_x - center_x) / smooth;
+    float aim_y = center_y + (best.screen_y - center_y) / smooth;
 
-    if (std::abs(move_x) < 0.5f && std::abs(move_y) < 0.5f)
+    float dist = std::sqrt((aim_x - center_x) * (aim_x - center_x) + (aim_y - center_y) * (aim_y - center_y));
+    if (dist < 0.5f)
         return;
 
     INPUT input_event = {};
     input_event.type = INPUT_MOUSE;
-    input_event.mi.dwFlags = MOUSEEVENTF_MOVE;
-    LONG move_dx = static_cast<LONG>(move_x);
-    LONG move_dy = static_cast<LONG>(move_y);
-    input_event.mi.dx = move_dx;
-    input_event.mi.dy = move_dy;
+    input_event.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+    input_event.mi.dx = (LONG)(aim_x * 65536.0f / screen_w);
+    input_event.mi.dy = (LONG)(aim_y * 65536.0f / screen_h);
     SendInput(1, &input_event, sizeof(INPUT));
 }
 
