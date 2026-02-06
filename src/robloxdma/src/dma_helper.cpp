@@ -1,19 +1,33 @@
 #include "dma_helper.h"
 #include "VolkDMA/process.hh"
 #include "VolkDMA/dma.hh"
+#include "VolkDMA/inputstate.hh"
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 static Process* s_process = nullptr;
 static DMA* s_dma = nullptr;
+static std::unique_ptr<InputState> s_input_state;
 
 Process* get_process() {
     return s_process;
 }
 
+DMA* get_dma() {
+    return s_dma;
+}
+
 void set_dma_and_process(DMA* dma, Process* process) {
     s_dma = dma;
     s_process = process;
+    s_input_state.reset();
+    if (dma && dma->handle)
+        s_input_state = std::make_unique<InputState>(*dma);
+}
+
+InputState* get_input_state() {
+    return s_input_state.get();
 }
 
 std::string read_string(Process* p, std::uint64_t address) {

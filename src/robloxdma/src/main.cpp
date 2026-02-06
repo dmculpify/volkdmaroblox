@@ -4,6 +4,7 @@
 #include <sdk/offsets/offsets.h>
 #include <game/game.h>
 #include <cache/cache.h>
+#include <cheats/aimbot/aimbot.h>
 #include <settings/settings.h>
 #include <settings/config.h>
 #include <dma_helper.h>
@@ -145,13 +146,12 @@ auto main() -> std::int32_t {
 	while (true)
 	{
 		render->start_render();
+		aimbot::run();
 		render->render_visuals();
-		
 		if (render->running)
 		{
 			render->render_menu();
 		}
-
 		render->end_render();
 	}
 

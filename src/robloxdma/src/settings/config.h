@@ -30,6 +30,13 @@ namespace config
 		file << "position_update_ms=" << settings::performance::position_update_ms << "\n";
 		file << "low_end_mode=" << settings::performance::low_end_mode << "\n";
 
+		file << "\n[Aimbot]\n";
+		file << "aim_key=" << settings::aimbot::aim_key << "\n";
+		file << "aim_body_part=" << settings::aimbot::aim_body_part << "\n";
+
+		file << "\n[Triggerbot]\n";
+		file << "trigger_key=" << settings::triggerbot::trigger_key << "\n";
+
 		file << "\n[Whitelist]\n";
 		for (std::uint64_t userid : whitelisted_players)
 			file << "player=" << userid << "\n";
@@ -75,6 +82,15 @@ namespace config
 				if (key == "cache_ms") settings::performance::cache_ms = std::stoi(value);
 				else if (key == "position_update_ms") settings::performance::position_update_ms = std::stoi(value);
 				else if (key == "low_end_mode") settings::performance::low_end_mode = (value == "1");
+			}
+			else if (current_section == "[Aimbot]")
+			{
+				if (key == "aim_key") settings::aimbot::aim_key = std::stoi(value);
+				else if (key == "aim_body_part") settings::aimbot::aim_body_part = std::stoi(value);
+			}
+			else if (current_section == "[Triggerbot]")
+			{
+				if (key == "trigger_key") settings::triggerbot::trigger_key = std::stoi(value);
 			}
 			else if (current_section == "[Whitelist]")
 			{

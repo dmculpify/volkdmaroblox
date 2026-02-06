@@ -62,9 +62,9 @@ namespace settings
 	{
 		inline bool enabled = false;
 		inline bool team_check = true;
-		inline bool aim_at_head = true;
 		inline bool draw_fov = true;
 		inline int aim_key = 0x02;
+		inline int aim_body_part = 0;
 		inline int target_priority = 0;
 		inline float fov = 100.0f;
 		inline float smoothness = 1.0f;

@@ -30,6 +30,9 @@
     <ClCompile Include="src\cache\cache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\cheats\aimbot\aimbot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\cheats\esp\esp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -90,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\cache\cache.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cheats\aimbot\aimbot.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\cheats\esp\esp.h">

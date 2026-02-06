@@ -5,13 +5,16 @@
 #include <dwmapi.h>
 #include <cstdio>
 #include <chrono>
+#include <array>
 #include <globals.h>
 #include <settings/settings.h>
 #include <settings/config.h>
 #include <cheats/esp/esp.h>
+#include <cheats/aimbot/aimbot.h>
 #include <cache/cache.h>
 #include <dma_helper.h>
 #include <VolkDMA/process.hh>
+#include <VolkDMA/inputstate.hh>
 #include <sdk/offsets/offsets.h>
 
 #define ALPHA    ( ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoDragDrop | ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_NoBorder )
@@ -124,83 +127,82 @@ bool render_t::create_window()
     return true;
 }
 
+#ifndef DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+#define DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING 0x00000200
+#endif
+#ifndef DXGI_PRESENT_ALLOW_TEARING
+#define DXGI_PRESENT_ALLOW_TEARING 0x00000200
+#endif
+
 bool render_t::create_device()
 {
-    DXGI_SWAP_CHAIN_DESC swap_chain_desc{};
-
-    swap_chain_desc.BufferCount = 1;
-
-    swap_chain_desc.BufferDesc.Width = 0;
-    swap_chain_desc.BufferDesc.Height = 0;
-    swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    swap_chain_desc.BufferDesc.RefreshRate.Numerator = 0;
-    swap_chain_desc.BufferDesc.RefreshRate.Denominator = 1;
-
-    swap_chain_desc.OutputWindow = this->detail->window;
-
-    swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-    swap_chain_desc.Windowed = 1;
-
-    swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-    swap_chain_desc.SampleDesc.Count = 2;
-    swap_chain_desc.SampleDesc.Quality = 0;
-
-    swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-
     D3D_FEATURE_LEVEL feature_level;
     D3D_FEATURE_LEVEL feature_level_list[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0 };
+    HRESULT result = E_FAIL;
 
-    HRESULT result = D3D11CreateDeviceAndSwapChain(
-        nullptr,
-        D3D_DRIVER_TYPE_HARDWARE,
-        nullptr,
-        0,
-        feature_level_list,
-        2,
-        D3D11_SDK_VERSION,
-        &swap_chain_desc,
-        &this->detail->swap_chain,
-        &this->detail->device,
-        &feature_level,
-        &this->detail->device_context
-    );
-
-    if (result == DXGI_ERROR_UNSUPPORTED)
-    {
-        result = D3D11CreateDeviceAndSwapChain(
-            nullptr,
-            D3D_DRIVER_TYPE_WARP,
-            nullptr,
-            0,
-            feature_level_list,
-            2,
-            D3D11_SDK_VERSION,
-            &swap_chain_desc,
-            &this->detail->swap_chain,
-            &this->detail->device,
-            &feature_level,
-            &this->detail->device_context
+    auto try_create = [&](UINT buffer_count, DXGI_SWAP_EFFECT swap_effect, UINT flags, D3D_DRIVER_TYPE driver) -> HRESULT {
+        if (this->detail->swap_chain) { this->detail->swap_chain->Release(); this->detail->swap_chain = nullptr; }
+        if (this->detail->device_context) { this->detail->device_context->Release(); this->detail->device_context = nullptr; }
+        if (this->detail->device) { this->detail->device->Release(); this->detail->device = nullptr; }
+        DXGI_SWAP_CHAIN_DESC scd = {};
+        scd.BufferCount = buffer_count;
+        scd.BufferDesc.Width = 0;
+        scd.BufferDesc.Height = 0;
+        scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        scd.BufferDesc.RefreshRate.Numerator = 0;
+        scd.BufferDesc.RefreshRate.Denominator = 1;
+        scd.OutputWindow = this->detail->window;
+        scd.SwapEffect = swap_effect;
+        scd.Windowed = 1;
+        scd.Flags = flags;
+        scd.SampleDesc.Count = 1;
+        scd.SampleDesc.Quality = 0;
+        scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        return D3D11CreateDeviceAndSwapChain(
+            nullptr, driver, nullptr, 0,
+            feature_level_list, 2, D3D11_SDK_VERSION,
+            &scd, &this->detail->swap_chain, &this->detail->device,
+            &feature_level, &this->detail->device_context
         );
-    }
+    };
 
-    if (result != S_OK)
+    result = try_create(2, DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH | DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
+        D3D_DRIVER_TYPE_HARDWARE);
+    if (FAILED(result))
+        result = try_create(2, DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH, D3D_DRIVER_TYPE_HARDWARE);
+    if (FAILED(result))
+        result = try_create(2, DXGI_SWAP_EFFECT_FLIP_DISCARD, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH, D3D_DRIVER_TYPE_WARP);
+    if (FAILED(result))
+        result = try_create(1, DXGI_SWAP_EFFECT_DISCARD, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH, D3D_DRIVER_TYPE_HARDWARE);
+    if (FAILED(result))
+        result = try_create(1, DXGI_SWAP_EFFECT_DISCARD, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH, D3D_DRIVER_TYPE_WARP);
+
+    if (FAILED(result) || !this->detail->swap_chain || !this->detail->device || !this->detail->device_context)
     {
-        MessageBoxA(nullptr, "This software can not run on your computer.", "Critical Problem", MB_ICONERROR | MB_OK);
+        char msg[256];
+        sprintf_s(msg, sizeof(msg),
+            "DirectX 11 graphics device could not be created (error 0x%08X).\n\n"
+            "Update your graphics drivers or try running on a PC with a dedicated GPU.", (unsigned)result);
+        MessageBoxA(nullptr, msg, "Graphics Error", MB_ICONERROR | MB_OK);
+        return false;
     }
 
-    ID3D11Texture2D* back_buffer{ nullptr };
+    ID3D11Texture2D* back_buffer = nullptr;
     this->detail->swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
-
-    if (back_buffer)
+    if (!back_buffer)
     {
-        this->detail->device->CreateRenderTargetView(back_buffer, nullptr, &this->detail->render_target_view);
-        back_buffer->Release();
-
-        return true;
+        MessageBoxA(nullptr, "Failed to get swap chain back buffer.", "Graphics Error", MB_ICONERROR | MB_OK);
+        return false;
     }
-
-    return false;
+    result = this->detail->device->CreateRenderTargetView(back_buffer, nullptr, &this->detail->render_target_view);
+    back_buffer->Release();
+    if (FAILED(result) || !this->detail->render_target_view)
+    {
+        MessageBoxA(nullptr, "Failed to create render target view.", "Graphics Error", MB_ICONERROR | MB_OK);
+        return false;
+    }
+    return true;
 }
 
 bool render_t::create_imgui()
@@ -418,35 +420,50 @@ void render_t::render_menu()
         ImGui::Separator();
         
         ImGui::Checkbox("Enable Aimbot", &settings::aimbot::enabled);
-        
         ImGui::Checkbox("Aimbot Team Check", &settings::aimbot::team_check);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Skip teammates when aiming");
-        
-        ImGui::Checkbox("Aim at Head", &settings::aimbot::aim_at_head);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Aim at head instead of body");
-        
         ImGui::Checkbox("Draw FOV Circle", &settings::aimbot::draw_fov);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Show FOV circle and crosshair");
-        
-        static const char* key_names[] = { 
-            "Left Mouse", "Right Mouse", "Middle Mouse", 
-            "MB4", "MB5", "Shift", "Ctrl", "Alt" 
-        };
-        static int key_values[] = { 
-            VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, 
-            VK_XBUTTON1, VK_XBUTTON2, VK_SHIFT, VK_CONTROL, VK_MENU 
-        };
-        static int current_key = 4; // Default MB5
-        
-        if (ImGui::Combo("Aim Key", &current_key, key_names, IM_ARRAYSIZE(key_names)))
-        {
-            settings::aimbot::aim_key = key_values[current_key];
+        const char* body_parts[] = { "Head", "Chest (UpperTorso)", "Body (HumanoidRootPart)" };
+        if (ImGui::Combo("Aim at", &settings::aimbot::aim_body_part, body_parts, IM_ARRAYSIZE(body_parts)))
+            { }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Bone/part to aim at (R15/R6 compatible)");
+        static bool waiting_for_aim_key = false;
+        static std::array<bool, 256> last_aim_key_state = {};
+        const char* aim_key_label = "Set Aim Key";
+        for (const auto& vk : InputState::virtual_keys) {
+            if (vk.code == (settings::aimbot::aim_key & 0xFF)) {
+                aim_key_label = vk.name.data();
+                break;
+            }
+        }
+        if (waiting_for_aim_key) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.7f, 0.2f, 1.0f));
+            if (ImGui::Button("Press any key (keyboard or mouse)..."))
+                waiting_for_aim_key = false;
+            ImGui::PopStyleColor();
+            InputState* inp = get_input_state();
+            if (inp && inp->read_bitmap()) {
+                for (const auto& vk : InputState::virtual_keys) {
+                    if (vk.code == 0xFF) continue;
+                    bool down = inp->is_key_down(vk.code);
+                    if (down && !last_aim_key_state[vk.code]) {
+                        settings::aimbot::aim_key = vk.code;
+                        waiting_for_aim_key = false;
+                        break;
+                    }
+                    last_aim_key_state[vk.code] = down;
+                }
+            }
+        } else {
+            if (ImGui::Button(aim_key_label))
+                waiting_for_aim_key = true;
         }
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Key to hold for aiming");
+            ImGui::SetTooltip("Key to hold for aiming (reads from game PC via DMA)");
         
         // Target priority selection
         static const char* priority_names[] = { 
@@ -497,24 +514,39 @@ void render_t::render_menu()
         ImGui::Checkbox("Head Only", &settings::triggerbot::head_only);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Only trigger when hovering over head");
-        
-        // Trigger key selection
-        static const char* trigger_key_names[] = { 
-            "Left Mouse", "Right Mouse", "Middle Mouse", 
-            "MB4", "MB5", "Shift", "Ctrl", "Alt" 
-        };
-        static int trigger_key_values[] = { 
-            VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, 
-            VK_XBUTTON1, VK_XBUTTON2, VK_SHIFT, VK_CONTROL, VK_MENU 
-        };
-        static int current_trigger_key = 3; // Default MB4
-        
-        if (ImGui::Combo("Trigger Key", &current_trigger_key, trigger_key_names, IM_ARRAYSIZE(trigger_key_names)))
-        {
-            settings::triggerbot::trigger_key = trigger_key_values[current_trigger_key];
+        static bool waiting_for_trigger_key = false;
+        static std::array<bool, 256> last_trigger_key_state = {};
+        const char* trigger_key_label = "Set Trigger Key";
+        for (const auto& vk : InputState::virtual_keys) {
+            if (vk.code == (settings::triggerbot::trigger_key & 0xFF)) {
+                trigger_key_label = vk.name.data();
+                break;
+            }
+        }
+        if (waiting_for_trigger_key) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.4f, 0.7f, 0.2f, 1.0f));
+            if (ImGui::Button("Press any key (trigger)..."))
+                waiting_for_trigger_key = false;
+            ImGui::PopStyleColor();
+            InputState* inp = get_input_state();
+            if (inp && inp->read_bitmap()) {
+                for (const auto& vk : InputState::virtual_keys) {
+                    if (vk.code == 0xFF) continue;
+                    bool down = inp->is_key_down(vk.code);
+                    if (down && !last_trigger_key_state[vk.code]) {
+                        settings::triggerbot::trigger_key = vk.code;
+                        waiting_for_trigger_key = false;
+                        break;
+                    }
+                    last_trigger_key_state[vk.code] = down;
+                }
+            }
+        } else {
+            if (ImGui::Button(trigger_key_label))
+                waiting_for_trigger_key = true;
         }
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Key to hold for triggering");
+            ImGui::SetTooltip("Key to hold for triggering (reads from game PC via DMA)");
         
         ImGui::SliderFloat("Delay (ms)", &settings::triggerbot::delay_ms, 0.0f, 500.0f, "%.0f");
         if (ImGui::IsItemHovered())
@@ -823,4 +855,5 @@ void render_t::render_visuals()
     ImGui::PopStyleVar(3);
     
     esp::run();
+    aimbot::draw_fov_circle();
 }

@@ -166,6 +166,7 @@
     <ClCompile Include="ext\imgui\imgui_widgets.cpp" />
     <ClCompile Include="src\dma_helper.cpp" />
     <ClCompile Include="src\cache\cache.cpp" />
+    <ClCompile Include="src\cheats\aimbot\aimbot.cpp" />
     <ClCompile Include="src\cheats\esp\esp.cpp" />
     <ClCompile Include="src\cheats\esp\helpers\visualize.h" />
     <ClCompile Include="src\game\game.cpp" />
@@ -193,6 +194,7 @@
     <ClInclude Include="ext\imgui\imstb_truetype.h" />
     <ClInclude Include="src\dma_helper.h" />
     <ClInclude Include="src\cache\cache.h" />
+    <ClInclude Include="src\cheats\aimbot\aimbot.h" />
     <ClInclude Include="src\cheats\esp\esp.h" />
     <ClInclude Include="src\game\game.h" />
     <ClInclude Include="src\globals.h" />
