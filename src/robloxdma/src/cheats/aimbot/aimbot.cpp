@@ -189,12 +189,6 @@ void aimbot::draw_fov_circle() {
     ImVec2 display = ImGui::GetIO().DisplaySize;
     float cx = display.x * 0.5f;
     float cy = display.y * 0.5f;
-    InputState* input = get_input_state();
-    if (input && input->read_bitmap()) {
-        InputState::Point cur = input->get_cursor_position();
-        cx = static_cast<float>(cur.x);
-        cy = static_cast<float>(cur.y);
-    }
     float radius = fov_radius_pixels(settings::aimbot::fov, display.x, display.y);
     ImDrawList* draw = ImGui::GetBackgroundDrawList();
     draw->AddCircle(ImVec2(cx, cy), radius, IM_COL32(255, 255, 255, 180), 64, 1.5f);
