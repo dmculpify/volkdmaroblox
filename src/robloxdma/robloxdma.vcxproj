@@ -74,13 +74,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)build\</OutDir>
     <IntDir>$(SolutionDir)artifacts\</IntDir>
-    <IncludePath>src;ext;ext\Clipper2Lib\include;$(ProjectDir)..\include;$(IncludePath)</IncludePath>
+    <IncludePath>src;ext;ext\Clipper2Lib\include;ext\makcu_lib;$(ProjectDir)..\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)..\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)build\</OutDir>
     <IntDir>$(SolutionDir)artifacts\</IntDir>
-    <IncludePath>src;ext;ext\Clipper2Lib\include;$(ProjectDir)..\include;$(IncludePath)</IncludePath>
+    <IncludePath>src;ext;ext\Clipper2Lib\include;ext\makcu_lib;$(ProjectDir)..\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)..\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -167,6 +167,9 @@
     <ClCompile Include="src\dma_helper.cpp" />
     <ClCompile Include="src\cache\cache.cpp" />
     <ClCompile Include="src\cheats\aimbot\aimbot.cpp" />
+    <ClCompile Include="src\cheats\triggerbot\triggerbot.cpp" />
+    <ClCompile Include="ext\makcu_lib\serialport.cpp" />
+    <ClCompile Include="src\makcu\makcu.cpp" />
     <ClCompile Include="src\cheats\esp\esp.cpp" />
     <ClCompile Include="src\cheats\esp\helpers\visualize.h" />
     <ClCompile Include="src\game\game.cpp" />
@@ -195,6 +198,8 @@
     <ClInclude Include="src\dma_helper.h" />
     <ClInclude Include="src\cache\cache.h" />
     <ClInclude Include="src\cheats\aimbot\aimbot.h" />
+    <ClInclude Include="src\cheats\triggerbot\triggerbot.h" />
+    <ClInclude Include="src\makcu\makcu.h" />
     <ClInclude Include="src\cheats\esp\esp.h" />
     <ClInclude Include="src\game\game.h" />
     <ClInclude Include="src\globals.h" />

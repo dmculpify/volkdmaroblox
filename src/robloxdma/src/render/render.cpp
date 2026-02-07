@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <chrono>
 #include <array>
+#include <string>
 #include <globals.h>
 #include <settings/settings.h>
 #include <settings/config.h>
@@ -13,9 +14,12 @@
 #include <cheats/aimbot/aimbot.h>
 #include <cache/cache.h>
 #include <dma_helper.h>
+#include <makcu/makcu.h>
+#include <game/game.h>
 #include <VolkDMA/process.hh>
 #include <VolkDMA/inputstate.hh>
 #include <sdk/offsets/offsets.h>
+#include <sdk/sdk.h>
 
 #define ALPHA    ( ImGuiColorEditFlags_AlphaPreview | ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoDragDrop | ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_NoBorder )
 #define NO_ALPHA ( ImGuiColorEditFlags_NoTooltip    | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_InputRGB | ImGuiColorEditFlags_Float | ImGuiColorEditFlags_NoDragDrop | ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_NoBorder )
@@ -416,6 +420,54 @@ void render_t::render_menu()
 
     ImGui::BeginChild("Main", ImVec2(0, 0));
     {
+        if (game::datamodel.address > 0x10000) {
+            if (game::is_rivals() || settings::game::force_rivals) {
+                ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "RIVALS");
+                ImGui::SameLine();
+                ImGui::TextDisabled("(supported)");
+                ImGui::SameLine();
+                if (game::players_service.address != 0)
+                    ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.2f, 1.0f), "| Players OK");
+                else
+                    ImGui::TextColored(ImVec4(0.9f, 0.5f, 0.2f, 1.0f), "| searching...");
+            }
+            ImGui::Spacing();
+        }
+        ImGui::TextUnformatted("MAKCU (Mouse)");
+        ImGui::Separator();
+        bool connected = makcu::is_connected();
+        ImGui::TextColored(connected ? ImVec4(0, 1, 0, 1) : ImVec4(1, 0.3f, 0.3f, 1), connected ? "Connected" : "Not connected");
+        ImGui::SameLine();
+        ImGui::Text("Port: %s", settings::aimbot::com_port);
+        if (ImGui::Button("Find MAKCU")) {
+            makcu::disconnect();
+            makcu::auto_connect();
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Scan COM1-20 to find MAKCU. Connect USB 2 to this PC.");
+        ImGui::SameLine();
+        static std::string test_move_result;
+        static std::chrono::steady_clock::time_point test_move_time;
+        if (ImGui::Button("Test Move")) {
+            if (makcu::move_relative(50, 50)) {
+                test_move_result = "OK - game PC mouse moved?";
+                test_move_time = std::chrono::steady_clock::now();
+            } else {
+                test_move_result = "FAIL";
+                test_move_time = std::chrono::steady_clock::now();
+            }
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Sends move(50,50). Game PC mouse should jump down-right.");
+        if (!test_move_result.empty() && std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - test_move_time).count() < 4) {
+            ImGui::SameLine();
+            ImGui::TextColored(test_move_result.find("OK") != std::string::npos ? ImVec4(0, 1, 0, 1) : ImVec4(1, 0.3f, 0.3f, 1), "%s", test_move_result.c_str());
+        }
+        ImGui::InputText("COM Port", settings::aimbot::com_port, sizeof(settings::aimbot::com_port));
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Override if auto-detect fails. Use Find MAKCU to scan.");
+        ImGui::Spacing();
+
         ImGui::TextUnformatted("Aimbot");
         ImGui::Separator();
         
@@ -505,7 +557,7 @@ void render_t::render_menu()
         
         ImGui::Checkbox("Enable Triggerbot", &settings::triggerbot::enabled);
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Automatically shoots when hovering over enemy");
+            ImGui::SetTooltip("Automatically shoots when crosshair on enemy. Requires MAKCU connected.");
         
         ImGui::Checkbox("Triggerbot Team Check", &settings::triggerbot::team_check);
         if (ImGui::IsItemHovered())
@@ -614,66 +666,9 @@ void render_t::render_menu()
 
         ImGui::Separator();
         ImGui::TextUnformatted("Performance");
-        ImGui::Checkbox("Low-end mode", &settings::performance::low_end_mode);
+        ImGui::SliderInt("Entity refresh (s)", &settings::performance::recache_dead_check_seconds, 1, 5, "%ds");
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Disables anti-aliasing for better FPS on weak PCs");
-        
-        ImGui::Separator();
-        ImGui::TextUnformatted("Resolution");
-        
-        static const char* resolutions[] = { "1280x720", "1920x1080", "2560x1440", "3840x2160", "Custom" };
-        static int current_resolution = 1; // Default to 1920x1080
-        
-        if (ImGui::Combo("Preset", &current_resolution, resolutions, IM_ARRAYSIZE(resolutions)))
-        {
-            switch (current_resolution)
-            {
-                case 0: settings::performance::resolution_width = 1280; settings::performance::resolution_height = 720; break;
-                case 1: settings::performance::resolution_width = 1920; settings::performance::resolution_height = 1080; break;
-                case 2: settings::performance::resolution_width = 2560; settings::performance::resolution_height = 1440; break;
-                case 3: settings::performance::resolution_width = 3840; settings::performance::resolution_height = 2160; break;
-            }
-        }
-        
-        if (current_resolution == 4) // Custom
-        {
-            ImGui::InputInt("Width", &settings::performance::resolution_width);
-            ImGui::InputInt("Height", &settings::performance::resolution_height);
-        }
-        else
-        {
-            ImGui::Text("Width: %d", settings::performance::resolution_width);
-            ImGui::Text("Height: %d", settings::performance::resolution_height);
-        }
-        
-        if (ImGui::Button("Apply Resolution", ImVec2(-1, 0)))
-        {
-            if (settings::performance::resolution_width >= 640 && settings::performance::resolution_width <= 7680 &&
-                settings::performance::resolution_height >= 480 && settings::performance::resolution_height <= 4320)
-            {
-                printf("[Resolution] Button clicked - setting flag to change to %dx%d\n", 
-                    settings::performance::resolution_width, settings::performance::resolution_height);
-                settings::performance::resolution_changed = true;
-            }
-            else
-            {
-                printf("[Resolution] Invalid resolution: %dx%d\n", 
-                    settings::performance::resolution_width, settings::performance::resolution_height);
-                ImGui::OpenPopup("Invalid Resolution");
-            }
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Apply the selected resolution (640x480 to 7680x4320)");
-        
-        if (ImGui::BeginPopupModal("Invalid Resolution", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-            ImGui::Text("Resolution must be between 640x480 and 7680x4320");
-            if (ImGui::Button("OK", ImVec2(120, 0)))
-            {
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndPopup();
-        }
+            ImGui::SetTooltip("How often to check for dead/respawned players. 1s = fast updates for RIVALS.");
         
         ImGui::Separator();
         ImGui::TextUnformatted("FPS Settings");

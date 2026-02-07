@@ -25,6 +25,15 @@ namespace cache
 			last_tick = now;
 			return true;
 		}
+		bool should_run_ms(int interval_ms) {
+			std::lock_guard<std::mutex> lock(mtx);
+			auto now = std::chrono::high_resolution_clock::now();
+			auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_tick);
+			if (delta.count() < interval_ms)
+				return false;
+			last_tick = now;
+			return true;
+		}
 		static RateLimiter& get_full_cache() {
 			static RateLimiter instance(1000);
 			return instance;

@@ -108,6 +108,8 @@ void esp::run()
         if (entity.model_instance_addr == 0 ||
             entity.model_instance_addr <= 0x10000 ||
             entity.model_instance_addr >= 0x7FFFFFFFFFFF ||
+            entity.parts.empty() ||
+            entity.primitive_cache.empty() ||
             !std::isfinite(entity.root_position.x) ||
             !std::isfinite(entity.root_position.y) ||
             !std::isfinite(entity.root_position.z))

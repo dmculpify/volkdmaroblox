@@ -42,6 +42,7 @@ namespace settings
 	{
 		inline int cache_ms = 250;
 		inline int position_update_ms = 6;
+		inline int recache_dead_check_seconds = 1;
 		inline bool low_end_mode = false;
 		inline bool cache_primitives = true;
 		inline bool black_background = true;
@@ -70,6 +71,7 @@ namespace settings
 		inline float smoothness = 1.0f;
 		inline bool prediction = false;
 		inline float prediction_strength = 1.0f;
+		inline char com_port[32] = "COM3";
 	}
 
 	namespace triggerbot
@@ -79,5 +81,10 @@ namespace settings
 		inline bool head_only = false;
 		inline int trigger_key = 0x01;
 		inline float delay_ms = 0.0f;
+	}
+
+	namespace game
+	{
+		inline bool force_rivals = false;
 	}
 }

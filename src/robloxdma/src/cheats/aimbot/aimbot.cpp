@@ -5,6 +5,7 @@
 #include <settings/config.h>
 #include <dma_helper.h>
 #include <globals.h>
+#include <makcu/makcu.h>
 #include "VolkDMA/inputstate.hh"
 #include <imgui/imgui.h>
 #include <cmath>
@@ -38,12 +39,21 @@ namespace {
         }
     }
 
+    const char* get_aim_bone_r15_chest() {
+        return "UpperTorso";
+    }
+
     bool get_aim_position(const cache::entity_t& entity, math::vector3& out_pos, math::vector3* out_vel) {
         const char* bone = get_aim_bone_name();
         const char* fallback = get_aim_bone_fallback_r6();
+        const char* r15_chest = get_aim_bone_r15_chest();
         auto it = entity.primitive_cache.find(bone);
         if (it == entity.primitive_cache.end())
             it = entity.primitive_cache.find(fallback);
+        if (it == entity.primitive_cache.end())
+            it = entity.primitive_cache.find(r15_chest);
+        if (it == entity.primitive_cache.end())
+            it = entity.primitive_cache.find("LowerTorso");
         if (it == entity.primitive_cache.end())
             it = entity.primitive_cache.find("HumanoidRootPart");
         if (it == entity.primitive_cache.end())
@@ -118,6 +128,8 @@ void aimbot::run() {
             continue;
         if (entity.model_instance_addr == 0 || entity.model_instance_addr <= 0x10000)
             continue;
+        if (entity.parts.empty() || entity.primitive_cache.empty())
+            continue;
         if (!std::isfinite(entity.root_position.x))
             continue;
 
@@ -171,12 +183,15 @@ void aimbot::run() {
     if (dist < 0.5f)
         return;
 
-    INPUT input_event = {};
-    input_event.type = INPUT_MOUSE;
-    input_event.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
-    input_event.mi.dx = (LONG)(aim_x * 65536.0f / screen_w);
-    input_event.mi.dy = (LONG)(aim_y * 65536.0f / screen_h);
-    SendInput(1, &input_event, sizeof(INPUT));
+    // MAKCU - use move_relative (same as Test Move, more reliable than move_to)
+    float delta_x = aim_x - center_x;
+    float delta_y = aim_y - center_y;
+    if (game_dims.x > 0 && game_dims.y > 0 && screen_w > 0 && screen_h > 0) {
+        int dx = (int)(delta_x * game_dims.x / screen_w);
+        int dy = (int)(delta_y * game_dims.y / screen_h);
+        if (dx != 0 || dy != 0)
+            makcu::move_relative(dx, dy);
+    }
 }
 
 void aimbot::draw_fov_circle() {

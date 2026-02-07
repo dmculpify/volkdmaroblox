@@ -11,6 +11,7 @@ static void* scatter_handle = nullptr;
 static std::unordered_map<std::uint64_t, cache::entity_t*> entity_ptr_map;
 static std::vector<cache::entity_t> cached_entities;
 static std::vector<cache::entity_t*> entities_to_update;
+static std::chrono::steady_clock::time_point last_full_resync;
 static void FetchEntities();
 static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update);
 static void UpdatePositions();
@@ -25,12 +26,24 @@ void cache::run() {
 	cached_entities.reserve(64);
 	entity_ptr_map.reserve(64);
 	entities_to_update.reserve(64);
+	last_full_resync = std::chrono::steady_clock::now();
 	LOG("[+] Cache system starting...\n");
 	while (true)
 	{
 		try
 		{
-			if (RateLimiter::get_full_cache().should_run())
+			int cache_interval_ms = settings::performance::recache_dead_check_seconds * 1000;
+			if (cache_interval_ms < 300) cache_interval_ms = 300;
+			if (cache_interval_ms > 30000) cache_interval_ms = 30000;
+			if (game::is_rivals()) cache_interval_ms = 150;
+			auto now = std::chrono::steady_clock::now();
+			auto resync_elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_full_resync).count();
+			if (resync_elapsed >= (game::is_rivals() ? 1 : 2))
+			{
+				last_full_resync = now;
+				settings::performance::force_refresh = true;
+			}
+			if (RateLimiter::get_full_cache().should_run_ms(cache_interval_ms))
 			{
 				FetchEntities();
 			}
@@ -48,6 +61,7 @@ void cache::run() {
 }
 static void FetchEntities()
 {
+	game::refresh_datamodel();
 	if (game::players_service.address == 0 || game::players_service.address <= 0x10000)
 	{
 		return;
@@ -92,13 +106,8 @@ static void FetchEntities()
 	if (force_refresh)
 	{
 		settings::performance::force_refresh = false;
-		for (auto& entity : cache::entity_cache)
-		{
-			entity.parts.clear();
-			entity.primitive_cache.clear();
-			entity.model_instance_addr = 0;
-		}
-		LOG("[Cache] Force refresh - cleared %zu player caches\n", cache::entity_cache.size());
+		cache::entity_cache.clear();
+		LOG("[Cache] Force refresh - cleared all\n");
 	}
 	entity_ptr_map.clear();
 	for (auto& entity : cache::entity_cache)
@@ -135,25 +144,16 @@ static void FetchEntities()
 		}
 		else
 		{
-			bool model_changed = (current_model != it->second->model_instance_addr);
-			bool no_parts = it->second->parts.empty();
-			if (model_changed || !valid_model || no_parts)
+			if (valid_model)
 			{
-				if (valid_model)
-				{
-					entity.model_instance_addr = current_model;
-					entities_to_update.push_back(&entity);
-				}
-				else
-				{
-					entity.model_instance_addr = 0;
-					entity.parts.clear();
-					entity.primitive_cache.clear();
-				}
+				entity.model_instance_addr = current_model;
+				entities_to_update.push_back(&entity);
 			}
 			else
 			{
-				entity = *it->second;
+				entity.model_instance_addr = 0;
+				entity.parts.clear();
+				entity.primitive_cache.clear();
 			}
 		}
 	}
@@ -162,17 +162,24 @@ static void FetchEntities()
 		FetchEntityData(entities_to_update);
 	}
 	{
-		std::lock_guard<std::mutex> lock(cache::frame_data.mtx);
-		cache::frame_data.entities = cached_entities;
-		for (auto& entity : cache::frame_data.entities)
+		std::vector<cache::entity_t> alive_only;
+		alive_only.reserve(cached_entities.size());
+		for (auto& entity : cached_entities)
 		{
 			if (entity.instance.address == localplayer.address)
 			{
 				cache::frame_data.local_entity = entity;
 				cache::local_entity = entity;
-				break;
+				continue;
 			}
+			if (entity.model_instance_addr == 0 || entity.model_instance_addr <= 0x10000)
+				continue;
+			if (entity.parts.empty() || entity.primitive_cache.empty())
+				continue;
+			alive_only.push_back(entity);
 		}
+		std::lock_guard<std::mutex> lock(cache::frame_data.mtx);
+		cache::frame_data.entities = std::move(alive_only);
 	}
 	cache::entity_cache = std::move(cached_entities);
 	cached_entities = cache::entity_cache;
@@ -221,7 +228,7 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 		}
 	}
 	static const std::unordered_set<std::string> essential_parts = {
-		"HumanoidRootPart", "Head", "UpperTorso", "Torso"
+		"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso", "Torso"
 	};
 	const std::unordered_set<std::string>& parts_to_read = essential_parts;
 	std::vector<std::uint64_t> model_parents(entities_to_update.size(), 0);
@@ -251,7 +258,6 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 			entity->parts.clear();
 			entity->primitive_cache.clear();
 			bool found_humanoid = false;
-			bool is_dead = false;
 			struct PartToRead {
 				std::string name;
 				std::uint64_t part_addr;
@@ -287,16 +293,10 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 							entity->humanoid_state = get_process()->read<std::int16_t>(child.address + Offsets::Humanoid::HumanoidState);
 							if (!std::isfinite(entity->health)) entity->health = 0.0f;
 							if (!std::isfinite(entity->max_health)) entity->max_health = 100.0f;
-							if (entity->health <= 0.0f || entity->humanoid_state == 15 || entity->humanoid_state == 16)
-							{
-								is_dead = true;
-							}
 						}
 						catch (...) {
 							entity->health = 0.0f;
 							entity->max_health = 100.0f;
-							entity->humanoid_state = 0;
-							is_dead = true;
 						}
 					}
 				}
@@ -343,13 +343,14 @@ static void FetchEntityData(std::vector<cache::entity_t*>& entities_to_update)
 					}
 				}
 			}
-			if (found_humanoid && is_dead)
+			if (!found_humanoid && entity->parts.empty())
 			{
 				entity->parts.clear();
 				entity->primitive_cache.clear();
 				entity->model_instance_addr = 0;
+				entity->root_position = math::vector3(0, 0, 0);
 			}
-			else if (!found_humanoid && entity->parts.empty())
+			else if (entity->parts.empty())
 			{
 				entity->model_instance_addr = 0;
 			}
@@ -365,9 +366,28 @@ static void UpdatePositions()
 {
 	if (!scatter_handle || cache::entity_cache.empty())
 		return;
+	for (size_t i = 0; i < cache::entity_cache.size(); ++i)
+	{
+		auto& entity = cache::entity_cache[i];
+		if (entity.model_instance_addr == 0) continue;
+		std::uint64_t cur_model = 0;
+		std::uint64_t cur_parent = 0;
+		try {
+			cur_model = get_process()->read<std::uint64_t>(entity.instance.address + Offsets::Player::ModelInstance);
+			if (cur_model > 0x10000)
+				cur_parent = get_process()->read<std::uint64_t>(cur_model + Offsets::Instance::Parent);
+		} catch (...) { cur_model = 0; cur_parent = 0; }
+		if (cur_model == 0 || cur_model <= 0x10000 || cur_parent == 0 || cur_parent <= 0x10000 || cur_model != entity.model_instance_addr)
+		{
+			entity.parts.clear();
+			entity.primitive_cache.clear();
+			entity.model_instance_addr = 0;
+			entity.root_position = math::vector3(0, 0, 0);
+		}
+	}
 	bool update_all_parts = false;
 	static const std::unordered_set<std::string> essential_update_parts = {
-		"HumanoidRootPart", "Head", "UpperTorso", "Torso"
+		"HumanoidRootPart", "Head", "UpperTorso", "LowerTorso", "Torso"
 	};
 	static std::unordered_map<size_t, std::unordered_map<std::string, std::uint64_t>> cached_prim_addrs;
 	static std::unordered_map<size_t, std::unordered_map<std::string, math::vector3>> positions_map;
@@ -472,7 +492,26 @@ static void UpdatePositions()
 		}
 	}
 	{
+		std::vector<cache::entity_t> alive_only;
+		alive_only.reserve(cache::entity_cache.size());
+		for (const auto& entity : cache::entity_cache)
+		{
+			if (entity.model_instance_addr == 0 || entity.model_instance_addr <= 0x10000)
+				continue;
+			if (entity.parts.empty() || entity.primitive_cache.empty())
+				continue;
+			alive_only.push_back(entity);
+		}
 		std::lock_guard<std::mutex> lock(cache::frame_data.mtx);
-		cache::frame_data.entities = cache::entity_cache;
+		cache::frame_data.entities = std::move(alive_only);
+		for (const auto& entity : cache::entity_cache)
+		{
+			if (entity.instance.address == cache::frame_data.local_entity.instance.address)
+			{
+				cache::frame_data.local_entity = entity;
+				cache::local_entity = entity;
+				break;
+			}
+		}
 	}
 }

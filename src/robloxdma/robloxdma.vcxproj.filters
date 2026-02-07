@@ -33,6 +33,12 @@
     <ClCompile Include="src\cheats\aimbot\aimbot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ext\makcu_lib\serialport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\makcu\makcu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\cheats\esp\esp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -96,6 +102,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\cheats\aimbot\aimbot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\makcu\makcu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\cheats\esp\esp.h">

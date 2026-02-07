@@ -1,12 +1,15 @@
 #include <globals.h>
 #include <thread>
+#include <chrono>
 #include <sdk/sdk.h>
 #include <sdk/offsets/offsets.h>
 #include <game/game.h>
 #include <cache/cache.h>
 #include <cheats/aimbot/aimbot.h>
+#include <cheats/triggerbot/triggerbot.h>
 #include <settings/settings.h>
 #include <settings/config.h>
+#include <makcu/makcu.h>
 #include <dma_helper.h>
 #include "VolkDMA/dma.hh"
 #include "VolkDMA/process.hh"
@@ -34,6 +37,11 @@ auto main() -> std::int32_t {
 	set_dma_and_process(g_dma.get(), g_process.get());
 
 	logger->log<info>("found roblox with pid %lu", pid);
+
+	{
+		logger->log<info>("loading config...");
+		config::load();
+	}
 
 	if (!g_process->fix_cr3(BINARY_NAME)) {
 		logger->log<info>("CR3 fix failed, continuing anyway...");
@@ -104,10 +112,36 @@ auto main() -> std::int32_t {
 
 		if (game::datamodel.address > 0x10000)
 		{
-			game::players_service = game::datamodel.find_first_child("Players");
+			if (game::is_rivals() || settings::game::force_rivals)
+			{
+				game::find_rivals_datamodel_children();
+				if (game::players_service.address != 0 || game::workspace.address != 0)
+					logger->log<info>("[RIVALS] FindFirstChildOfClass OK");
+			}
+			else
+			{
+				game::players_service = game::datamodel.find_first_child("Players");
+				game::workspace = game::datamodel.find_first_child("Workspace");
+			}
+			if (game::players_service.address == 0 || game::workspace.address == 0)
+			{
+				game::find_rivals_datamodel_children();
+				if (game::players_service.address != 0 || game::workspace.address != 0) {
+					settings::game::force_rivals = true;
+					config::save();
+					logger->log<info>("[RIVALS] Normal returned 0x0, RIVALS worked - saved force_rivals");
+				}
+			}
+			if (game::workspace.address == 0 && game::datamodel.address > 0x10000)
+			{
+				std::uint64_t workspace_direct = g_process->read<std::uint64_t>(game::datamodel.address + Offsets::DataModel::Workspace);
+				if (workspace_direct > 0x10000)
+				{
+					game::workspace = rbx::instance_t(workspace_direct);
+					logger->log<info>("[INIT] Workspace from DataModel direct offset");
+				}
+			}
 			logger->log<debug>("players  -> 0x%llx", game::players_service.address);
-			
-			game::workspace = game::datamodel.find_first_child("Workspace");
 			logger->log<debug>("workspace -> 0x%llx", game::workspace.address);
 		}
 		else
@@ -118,8 +152,11 @@ auto main() -> std::int32_t {
 	}
 
 	{
-		logger->log<info>("loading config...");
-		config::load();
+		makcu::auto_connect();
+		if (makcu::is_connected())
+			logger->log<info>("MAKCU connected on %s", settings::aimbot::com_port);
+		else
+			logger->log<info>("MAKCU not found - connect USB 2 to this PC, click Find MAKCU in menu");
 	}
 
 	{
@@ -143,10 +180,43 @@ auto main() -> std::int32_t {
 		std::thread(cache::run).detach();
 	}
 
+	static auto last_makcu_retry = std::chrono::steady_clock::now();
+	static auto last_rivals_retry = std::chrono::steady_clock::now();
 	while (true)
 	{
+		auto now = std::chrono::steady_clock::now();
+		if (!makcu::is_connected() &&
+		    std::chrono::duration_cast<std::chrono::seconds>(now - last_makcu_retry).count() >= 3) {
+			makcu::auto_connect();
+			last_makcu_retry = now;
+		}
+		if (game::players_service.address == 0 && game::datamodel.address > 0x10000 &&
+		    std::chrono::duration_cast<std::chrono::seconds>(now - last_rivals_retry).count() >= 5) {
+			std::uint64_t placeid_now = g_process->read<std::uint64_t>(game::datamodel.address + Offsets::DataModel::PlaceId);
+			game::placeid = placeid_now;
+			if (game::is_rivals() || settings::game::force_rivals) {
+				game::find_rivals_datamodel_children();
+			}
+			else {
+				game::players_service = game::datamodel.find_first_child("Players");
+				game::workspace = game::datamodel.find_first_child("Workspace");
+			}
+			if (game::players_service.address == 0 || game::workspace.address == 0) {
+				game::find_rivals_datamodel_children();
+				if (game::players_service.address != 0 || game::workspace.address != 0) {
+					settings::game::force_rivals = true;
+					config::save();
+				}
+			}
+			if (game::workspace.address == 0) {
+				std::uint64_t ws = g_process->read<std::uint64_t>(game::datamodel.address + Offsets::DataModel::Workspace);
+				if (ws > 0x10000) game::workspace = rbx::instance_t(ws);
+			}
+			last_rivals_retry = now;
+		}
 		render->start_render();
 		aimbot::run();
+		triggerbot::run();
 		render->render_visuals();
 		if (render->running)
 		{
